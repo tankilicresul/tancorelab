@@ -440,9 +440,8 @@ export const TaskMindMapCanvas: React.FC = () => {
   const lastSelectedIdRef = useRef<string>('root');
   const lastTapRef = useRef<{ time: number; x: number; y: number } | null>(null);
   const lastNodeTapRef = useRef<{ time: number; nodeId: string } | null>(null);
-  const lastPlusTapRef = useRef<{ time: number; nodeId: string; dir: 'top' | 'right' | 'bottom' | 'left' } | null>(null);
-  const plusDragActiveRef = useRef<boolean>(false);
-  const didMoveRopeRef = useRef<boolean>(false);
+  const lastPlusClickTimeRef = useRef<number>(0);
+  const plusClickTimeoutRef = useRef<any>(null);
   const [isTransitioning, setIsTransitioning] = useState(false);
 
   useEffect(() => { zoomRef.current = zoom; }, [zoom]);
@@ -594,6 +593,12 @@ export const TaskMindMapCanvas: React.FC = () => {
     );
 
     if (isBg) {
+      if (connectingFromId) {
+        setConnectingFromId(null);
+        setMouseWorldPos(null);
+        return;
+      }
+
       // Check for double tap/click
       const now = Date.now();
       const lastTap = lastTapRef.current;
@@ -614,7 +619,7 @@ export const TaskMindMapCanvas: React.FC = () => {
       setSelectedId(null);
       setEditingId(null);
     }
-  }, [centerTargetNode]);
+  }, [centerTargetNode, connectingFromId]);
 
   const handlePointerMove = useCallback((e: React.PointerEvent) => {
     if (connectingFromId) {
@@ -641,34 +646,14 @@ export const TaskMindMapCanvas: React.FC = () => {
     }
   }, [connectingFromId]);
 
-  const handlePointerUp = useCallback((e: React.PointerEvent) => {
-    if (connectingFromId) {
-      const elem = document.elementFromPoint(e.clientX, e.clientY);
-      const nodeElem = elem?.closest('.mindmap-node');
-      if (nodeElem) {
-        const targetId = nodeElem.getAttribute('data-node-id');
-        if (targetId && targetId !== connectingFromId) {
-          const newEdgeId = `e_${connectingFromId}_${targetId}_${Date.now()}`;
-          setEdges((prev) => {
-            const exists = prev.some(
-              (edge) => (edge.from === connectingFromId && edge.to === targetId) || (edge.from === targetId && edge.to === connectingFromId)
-            );
-            if (exists) return prev;
-            return [...prev, { id: newEdgeId, from: connectingFromId, to: targetId }];
-          });
-        }
-      }
-      setConnectingFromId(null);
-      setMouseWorldPos(null);
-    }
-
+  const handlePointerUp = useCallback(() => {
     isPanningRef.current = false;
     if (isDraggingNodeRef.current && dragDistRef.current > 5) {
       wasDragRef.current = true;
     }
     isDraggingNodeRef.current = false;
     dragNodeIdRef.current = null;
-  }, [connectingFromId]);
+  }, []);
 
   /* ── add node ── */
   const addNode = useCallback(
@@ -791,14 +776,17 @@ export const TaskMindMapCanvas: React.FC = () => {
   /* ── plus button interactions ── */
   const handlePlusPointerDown = useCallback((e: React.PointerEvent, nodeId: string, dir: 'top' | 'right' | 'bottom' | 'left') => {
     e.stopPropagation();
-    const now = Date.now();
-    const lastTap = lastPlusTapRef.current;
+    setIsTransitioning(false);
 
-    if (lastTap && lastTap.nodeId === nodeId && lastTap.dir === dir && now - lastTap.time < 300) {
-      (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-      plusDragActiveRef.current = true;
-      didMoveRopeRef.current = false;
-      dragStartRef.current = { x: e.clientX, y: e.clientY };
+    const now = Date.now();
+    const diff = now - lastPlusClickTimeRef.current;
+
+    if (diff < 300) {
+      // DOUBLE PRESS: Start rope connection mode
+      if (plusClickTimeoutRef.current) {
+        clearTimeout(plusClickTimeoutRef.current);
+        plusClickTimeoutRef.current = null;
+      }
 
       setConnectingFromId(nodeId);
       setSelectedId(nodeId);
@@ -807,56 +795,23 @@ export const TaskMindMapCanvas: React.FC = () => {
       const wy = (e.clientY - panRef.current.y) / zoomRef.current;
       setMouseWorldPos({ x: wx, y: wy });
 
-      lastPlusTapRef.current = null;
+      lastPlusClickTimeRef.current = 0;
     } else {
-      lastPlusTapRef.current = { time: now, nodeId, dir };
-    }
-  }, []);
+      // SINGLE PRESS: Add task & open modal after delay
+      lastPlusClickTimeRef.current = now;
 
-  const handlePlusPointerMove = useCallback((e: React.PointerEvent) => {
-    if (plusDragActiveRef.current) {
-      const dx = Math.abs(e.clientX - dragStartRef.current.x);
-      const dy = Math.abs(e.clientY - dragStartRef.current.y);
-      if (dx > 5 || dy > 5) {
-        didMoveRopeRef.current = true;
+      if (plusClickTimeoutRef.current) {
+        clearTimeout(plusClickTimeoutRef.current);
       }
-    }
-  }, []);
-
-  const handlePlusPointerUp = useCallback((e: React.PointerEvent, nodeId: string, dir: 'top' | 'right' | 'bottom' | 'left') => {
-    if (plusDragActiveRef.current) {
-      try {
-        (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
-      } catch (err) {
-        // Ignore
-      }
-      plusDragActiveRef.current = false;
-
-      if (didMoveRopeRef.current) {
-        const elem = document.elementFromPoint(e.clientX, e.clientY);
-        const nodeElem = elem?.closest('.mindmap-node');
-        if (nodeElem) {
-          const targetId = nodeElem.getAttribute('data-node-id');
-          if (targetId && targetId !== nodeId) {
-            const newEdgeId = `e_${nodeId}_${targetId}_${Date.now()}`;
-            setEdges((prev) => {
-              const exists = prev.some(
-                (edge) => (edge.from === nodeId && edge.to === targetId) || (edge.from === targetId && edge.to === nodeId)
-              );
-              if (exists) return prev;
-              return [...prev, { id: newEdgeId, from: nodeId, to: targetId }];
-            });
-          }
-        }
-        setConnectingFromId(null);
-        setMouseWorldPos(null);
-      } else {
+      plusClickTimeoutRef.current = setTimeout(() => {
         addNode(nodeId, dir);
-        setConnectingFromId(null);
-        setMouseWorldPos(null);
-      }
+        plusClickTimeoutRef.current = null;
+      }, 250);
     }
   }, [addNode]);
+
+  const handlePlusPointerMove = useCallback(() => {}, []);
+  const handlePlusPointerUp = useCallback(() => {}, []);
 
 
 
