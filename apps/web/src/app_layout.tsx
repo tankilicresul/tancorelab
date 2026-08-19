@@ -484,7 +484,7 @@ export const AppLayout: React.FC = () => {
           )}
         </div>
 
-        <div className="sidebar-footer" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        <div className="sidebar-footer" style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: 'auto' }}>
           <button className="btn btn-primary btn-block" onClick={() => setShowTeamModal(true)}>
             <UserPlus size={16} />
             <span>Üye Davet Et</span>
