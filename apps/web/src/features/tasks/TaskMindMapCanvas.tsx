@@ -471,7 +471,14 @@ export const TaskMindMapCanvas: React.FC = () => {
     const center = () => {
       const r = el.getBoundingClientRect();
       if (r.width > 100 && r.height > 100 && !centered) {
-        setPan({ x: r.width / 2 - NODE_W / 2, y: r.height / 2 - NODE_H / 2 });
+        const targetNode = nodes.find((n) => n.id === 'root') || nodes[0];
+        if (targetNode) {
+          const ncx = targetNode.x + NODE_W / 2;
+          const ncy = targetNode.y + NODE_H / 2;
+          setPan({ x: r.width / 2 - ncx, y: r.height / 2 - ncy });
+        } else {
+          setPan({ x: r.width / 2 - NODE_W / 2, y: r.height / 2 - NODE_H / 2 });
+        }
         setZoom(1);
         centered = true;
       }
