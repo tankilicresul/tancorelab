@@ -445,6 +445,9 @@ export const TaskMindMapCanvas: React.FC = () => {
   const dragStartRef = useRef({ x: 0, y: 0 });
   const zoomRef = useRef(zoom);
   const panRef = useRef(pan);
+  const lastSelectedIdRef = useRef<string>('root');
+  const lastTapRef = useRef<{ time: number; x: number; y: number } | null>(null);
+  const [isTransitioning, setIsTransitioning] = useState(false);
 
   useEffect(() => { zoomRef.current = zoom; }, [zoom]);
   useEffect(() => { panRef.current = pan; }, [pan]);
@@ -519,22 +522,96 @@ export const TaskMindMapCanvas: React.FC = () => {
     return () => el.removeEventListener('wheel', handleWheel);
   }, []);
 
+  /* ── center node action ── */
+  const centerNode = useCallback((node: MindMapNode) => {
+    if (!containerRef.current) return;
+    const rect = containerRef.current.getBoundingClientRect();
+    const ncx = node.x + NODE_W / 2;
+    const ncy = node.y + NODE_H / 2;
+
+    let targetZoom = zoomRef.current;
+    if (targetZoom < 0.6 || targetZoom > 1.8) {
+      targetZoom = 1.0;
+    }
+
+    setIsTransitioning(true);
+    setZoom(targetZoom);
+    setPan({
+      x: rect.width / 2 - ncx * targetZoom,
+      y: rect.height / 2 - ncy * targetZoom,
+    });
+
+    setTimeout(() => {
+      setIsTransitioning(false);
+    }, 450);
+  }, []);
+
+  const centerTargetNode = useCallback(() => {
+    if (nodes.length === 0) return;
+
+    if (selectedId) {
+      const node = nodes.find((n) => n.id === selectedId);
+      if (node) {
+        centerNode(node);
+        return;
+      }
+    }
+
+    const lastNode = nodes.find((n) => n.id === lastSelectedIdRef.current);
+    if (lastNode) {
+      centerNode(lastNode);
+      setSelectedId(lastNode.id);
+      return;
+    }
+
+    const rootNode = nodes.find((n) => n.id === 'root');
+    if (rootNode) {
+      centerNode(rootNode);
+      setSelectedId(rootNode.id);
+      return;
+    }
+
+    const firstNode = nodes[0];
+    if (firstNode) {
+      centerNode(firstNode);
+      setSelectedId(firstNode.id);
+    }
+  }, [nodes, selectedId, centerNode]);
+
   /* ── pointer handlers (pan + node‑drag) ── */
   const handlePointerDown = useCallback((e: React.PointerEvent) => {
+    setIsTransitioning(false);
+
     const target = e.target as HTMLElement;
-    if (
+    const isBg = (
       target === containerRef.current ||
       target.classList.contains('mindmap-canvas-world') ||
       target.classList.contains('mindmap-svg-layer') ||
       target.classList.contains('mindmap-grid-pattern')
-    ) {
+    );
+
+    if (isBg) {
+      // Check for double tap/click
+      const now = Date.now();
+      const lastTap = lastTapRef.current;
+      if (lastTap && now - lastTap.time < 300) {
+        const dx = Math.abs(e.clientX - lastTap.x);
+        const dy = Math.abs(e.clientY - lastTap.y);
+        if (dx < 20 && dy < 20) {
+          centerTargetNode();
+          lastTapRef.current = null;
+          return;
+        }
+      }
+      lastTapRef.current = { time: now, x: e.clientX, y: e.clientY };
+
       isPanningRef.current = true;
       panStartRef.current = { x: e.clientX - panRef.current.x, y: e.clientY - panRef.current.y };
       (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
       setSelectedId(null);
       setEditingId(null);
     }
-  }, []);
+  }, [centerTargetNode]);
 
   const handlePointerMove = useCallback((e: React.PointerEvent) => {
     if (connectingFromId) {
@@ -599,11 +676,13 @@ export const TaskMindMapCanvas: React.FC = () => {
     dragDistRef.current = 0;
     wasDragRef.current = false;
     setSelectedId(nodeId);
+    lastSelectedIdRef.current = nodeId;
   }, []);
 
   const handleStartRopeDrag = useCallback((nodeId: string, e: React.PointerEvent) => {
     setConnectingFromId(nodeId);
     setSelectedId(nodeId);
+    lastSelectedIdRef.current = nodeId;
     const wx = (e.clientX - panRef.current.x) / zoomRef.current;
     const wy = (e.clientY - panRef.current.y) / zoomRef.current;
     setMouseWorldPos({ x: wx, y: wy });
@@ -627,6 +706,7 @@ export const TaskMindMapCanvas: React.FC = () => {
     }
     wasDragRef.current = false;
     setSelectedId(nodeId);
+    lastSelectedIdRef.current = nodeId;
   }, [connectingFromId]);
 
   const handleNodeDoubleClick = useCallback((e: React.MouseEvent, nodeId: string) => {
@@ -681,6 +761,7 @@ export const TaskMindMapCanvas: React.FC = () => {
         setTimeout(() => {
           setDetailNodeId(newId);
           setSelectedId(newId);
+          lastSelectedIdRef.current = newId;
         }, 80);
 
         return [...prev, newNode];
@@ -836,6 +917,7 @@ export const TaskMindMapCanvas: React.FC = () => {
         style={{
           transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
           transformOrigin: '0 0',
+          transition: isTransitioning ? 'transform 0.4s cubic-bezier(0.25, 1, 0.5, 1)' : 'none',
         }}
       >
         {/* SVG edge layer */}

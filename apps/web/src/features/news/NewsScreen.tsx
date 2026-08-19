@@ -1,14 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { TrendingUp, Cpu, Lightbulb, Zap, Sparkles, Rocket, Star, Bookmark } from 'lucide-react';
-import { useAuth } from '../../context/AuthContext';
+import { TrendingUp, Cpu, Lightbulb, Zap, Sparkles, Star, Bookmark } from 'lucide-react';
 
 interface NewsScreenProps {
   initialCategory?: 'all' | 'ai' | 'startup' | 'editors';
 }
 
 export const NewsScreen: React.FC<NewsScreenProps> = ({ initialCategory = 'all' }) => {
-  const { user } = useAuth();
-  const userName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Girişimci';
   const [activeFilter, setActiveFilter] = useState<'all' | 'ai' | 'startup' | 'editors'>(initialCategory);
 
   useEffect(() => {
@@ -280,30 +277,15 @@ export const NewsScreen: React.FC<NewsScreenProps> = ({ initialCategory = 'all' 
   return (
     <div className="news-container fade-in" style={{ maxWidth: '1200px', margin: '0 auto', paddingBottom: '40px' }}>
       {/* Header Section */}
-      <div className="news-header" style={{ marginBottom: '32px' }}>
-        <h1 style={{ fontSize: '1.75rem', fontWeight: 900, letterSpacing: '-0.02em', marginBottom: '8px' }}>
+      <div className="news-header" style={{ marginBottom: '24px' }}>
+        <h1 style={{ fontSize: '1.75rem', fontWeight: 900, letterSpacing: '-0.02em', margin: 0 }}>
           Girişimcilik & Teknoloji Dünyasından Haberler 🚀
         </h1>
-        <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
-          Hoş geldin, <strong>{userName}</strong>. Yapay zeka gelişmelerini, ekosistem haberlerini ve editörlerimizin seçtiği özel rehberleri takip edebilirsin.
-        </p>
       </div>
 
       {/* SECTION 1: Yapay Zeka Gelişmeleri */}
       {(activeFilter === 'all' || activeFilter === 'ai') && (
         <section style={{ marginBottom: '40px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
-            <h2 style={{ fontSize: '1.25rem', fontWeight: 900, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '10px', margin: 0 }}>
-              <span style={{
-                padding: '6px', borderRadius: '10px', backgroundColor: 'rgba(59, 130, 246, 0.12)', color: '#3b82f6', display: 'flex'
-              }}>
-                <Cpu size={20} />
-              </span>
-              1- Yapay Zeka Gelişmeleri
-            </h2>
-            <span style={{ fontSize: '0.78rem', color: 'var(--accent-color)', fontWeight: 700 }}>3 Güncel İçerik</span>
-          </div>
-
           <div style={{
             display: 'grid',
             gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
@@ -317,18 +299,6 @@ export const NewsScreen: React.FC<NewsScreenProps> = ({ initialCategory = 'all' 
       {/* SECTION 2: Girişimcilik Haberleri */}
       {(activeFilter === 'all' || activeFilter === 'startup') && (
         <section style={{ marginBottom: '40px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
-            <h2 style={{ fontSize: '1.25rem', fontWeight: 900, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '10px', margin: 0 }}>
-              <span style={{
-                padding: '6px', borderRadius: '10px', backgroundColor: 'rgba(16, 185, 129, 0.12)', color: '#10b981', display: 'flex'
-              }}>
-                <Rocket size={20} />
-              </span>
-              2- Girişimcilik Haberleri
-            </h2>
-            <span style={{ fontSize: '0.78rem', color: 'var(--accent-color)', fontWeight: 700 }}>3 Güncel İçerik</span>
-          </div>
-
           <div style={{
             display: 'grid',
             gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
@@ -342,18 +312,6 @@ export const NewsScreen: React.FC<NewsScreenProps> = ({ initialCategory = 'all' 
       {/* SECTION 3: Editörün Seçimleri */}
       {(activeFilter === 'all' || activeFilter === 'editors') && (
         <section style={{ marginBottom: '20px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
-            <h2 style={{ fontSize: '1.25rem', fontWeight: 900, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '10px', margin: 0 }}>
-              <span style={{
-                padding: '6px', borderRadius: '10px', backgroundColor: 'rgba(255, 159, 10, 0.12)', color: '#ff9f0a', display: 'flex'
-              }}>
-                <Star size={20} />
-              </span>
-              3- Editörün Seçimleri
-            </h2>
-            <span style={{ fontSize: '0.78rem', color: 'var(--accent-color)', fontWeight: 700 }}>3 Özel İçerik</span>
-          </div>
-
           <div style={{
             display: 'grid',
             gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
